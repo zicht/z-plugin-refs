@@ -1,0 +1,15 @@
+{
+    "name": "zicht/z-plugin-refs",
+    "description": "A refs plugin that will create refs from deploy",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Philip Bergman",
+            "email": "philip@zicht.nl"
+        }
+    ],
+    "require": {
+	"php": ">=5.3.3",
+        "zicht/z-plugin-git": "^1.0"
+    }
+}
