@@ -10,8 +10,16 @@ use Zicht\Tool\Container\Container;
 use Zicht\Tool\Plugin as BasePlugin;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 
+/**
+ * Class Plugin
+ *
+ * @package Zicht\Tool\Plugin\Refs
+ */
 class Plugin extends BasePlugin
 {
+    /** @var array  */
+    protected $cache;
+
     /**
      * Appends the refs configuration
      *
@@ -27,8 +35,109 @@ class Plugin extends BasePlugin
                         ->scalarNode('prefix')->end()
                     ->end()
                 ->end()
-            ->end()
-        ;
+            ->end();
+    }
+
+    /**
+     * will squash all arguments and generate a sh1 from string
+     *
+     * @param mixed ...$data
+     *
+     * @return string
+     */
+    protected function hash(...$data)
+    {
+        return sha1(implode('', $data));
+    }
+
+    /**
+     * Will create a hash for saving result from command
+     * based on given parameters and method name.
+     *
+     * @param array|string $id
+     * @param mixed ...$args
+     *
+     * @return string
+     */
+    protected function createHash($id, ...$args)
+    {
+        if (is_string($id)) {
+            $id = explode(".", $id);
+        }
+
+        return sprintf(
+            "%s.%s",
+            $this->hash(...$id),
+            $this->hash(...$args)
+        );
+    }
+
+    /**
+     * Helper that caches result for command based on args.
+     *
+     * @param Container $container
+     * @param array $id
+     * @param callable $func
+     */
+    protected function cachedResultMethod(Container $container, $id, callable $func)
+    {
+        $container->method(
+            $id,
+            function (Container $c, ...$args) use ($func, $id) {
+                $hash = $this->createHash($id, ...$args);
+                if (isset($this->cache[$hash])) {
+                    return $this->cache[$hash];
+                } else {
+                    $ret = $func($c, ...$args);
+                    $this->cache[$hash] = $ret;
+                    return $ret;
+                }
+            }
+        );
+    }
+
+    /**
+     * @param Container $c
+     * @param string $env
+     *
+     * @return null|string
+     */
+    protected function getParentArg(Container $c, $env)
+    {
+        if (null !== ($hash = $this->getLocalTreeHash($c, $env))) {
+            return sprintf(" -p %s", $hash);
+        }
+
+        return null;
+    }
+
+    /**
+     * @param Container $c
+     * @param string $env
+     * @return mixed
+     */
+    protected function getLocalTreeHash(Container $c, $env)
+    {
+        if ($this->call($c, 'refs.local.exists', $env)) {
+            return $this->call($c, 'refs.resolve', $env, false);
+        }
+        return null;
+    }
+
+    /**
+     * Tries to resole a command and runs it with given arguments
+     *
+     * @param Container $container
+     * @param array|string $id
+     * @param mixed ...$args
+     * @return mixed
+     */
+    protected function call(Container $container, $id, ...$args)
+    {
+        if (($callable = $container->resolve($id)[0]) instanceof \Closure) {
+            return $callable($container, ...$args);
+        }
+        return null;
     }
 
     /**
@@ -36,75 +145,107 @@ class Plugin extends BasePlugin
      */
     public function setContainer(Container $container)
     {
-        $container->method(
-            array('refs', 'path'),
-            function (Container $container, $env) {
-                $prefix = $container->resolve('refs.prefix');
-                return ($prefix[strlen($prefix)-1] === "/" ? sprintf("%s%s", $prefix, $env) : sprintf("%s%s", $prefix, $env));
+        $this->cachedResultMethod(
+            $container,
+            ['refs', 'path'],
+            function (Container $c, $env) {
+                $prefix = $c->resolve('refs.prefix');
+                return ($prefix[strlen($prefix)-1] === DIRECTORY_SEPARATOR ? sprintf("%s%s", $prefix, $env) : sprintf("%s%s", $prefix, $env));
             }
         );
-        $container->method(
-            array('refs', 'local', 'exists'),
-            function(Container $container, $env) {
-                $path = call_user_func_array($container->resolve('refs.path')[0], [$container, $env]);
+
+        $this->cachedResultMethod(
+            $container,
+            ['refs', 'local', 'exists'],
+            function (Container $c, $env) {
                 try {
-                    $container->helperExec(sprintf('git show-ref --verify --quiet %s', $path));
+                    $c->helperExec(
+                        sprintf(
+                            'git show-ref --verify --quiet %s',
+                            $this->call($c, 'refs.path', $env)
+                        )
+                    );
                     return true;
                 } catch (\Exception $e) {
                     return false;
                 }
             }
         );
-        $container->method(
-            array('refs', 'remote', 'exists'),
-            function(Container $container, $env) {
-                $path = call_user_func_array($container->resolve('refs.path')[0], [$container, $env]);
+
+        $this->cachedResultMethod(
+            $container,
+            ['refs', 'remote', 'exists'],
+            function (Container $c, $env) {
                 try {
-                    $container->helperExec(sprintf('git ls-remote --exit-code . %s', $path));
+                    $c->helperExec(
+                        sprintf(
+                            'git ls-remote --exit-code . %s',
+                            $this->call($c, 'refs.path', $env)
+                        )
+                    );
                     return true;
                 } catch (\Exception $e) {
                     return false;
                 }
             }
         );
-        $container->method(
-            array('refs', 'resolve'),
-            function(Container $container, $env, $verbose = false) {
-                $path = call_user_func_array($container->resolve('refs.path')[0], [$container, $env]);
-                $commit = $container->helperExec(sprintf('git show-ref %s%s', $path, (!$verbose) ? " --hash" : null));
+
+        $this->cachedResultMethod(
+            $container,
+            ['refs', 'resolve'],
+            function (Container $c, $env, $verbose = false) {
+                $commit = $c->helperExec(
+                    sprintf(
+                        'git show-ref %s%s',
+                        $this->call($c, 'refs.path', $env),
+                        (!$verbose) ? " --hash" : null
+                    )
+                );
                 return trim($commit);
             }
         );
-        $container->method(
-            array('refs', 'resolve_tree'),
-            function(Container $container, $version) {
-                $tree = $container->helperExec(sprintf('git rev-parse %s^{tree}', $version));
-                return trim($tree);
+
+        $this->cachedResultMethod(
+            $container,
+            ['refs', 'resolve_tree'],
+            function (Container $c, $version) {
+                return trim($c->helperExec(sprintf('git rev-parse %s^{tree}', $version)));
             }
         );
-        $container->method(
-            array('refs', 'log_message'),
-            function(Container $container, $version) {
-                $message = $container->helperExec(sprintf("git log -1 --pretty=format:\"[z] Commit from: '%%h %%s'\" %s", $version));
-                return trim($message);
+
+        $this->cachedResultMethod(
+            $container,
+            ['refs', 'log_message'],
+            function (Container $c, $version) {
+                return trim($c->helperExec(sprintf("git log -1 --pretty=format:\"[z] Commit from: '%%h %%s'\" %s", $version)));
             }
         );
+
         $container->method(
-            array('refs', 'create_command'),
-            function(Container $container, $message, $version, $env) {
-                $tree = call_user_func_array($container->resolve('refs.resolve_tree')[0], [$container, $version]);
-                $path = call_user_func_array($container->resolve('refs.path')[0], [$container, $env]);
-                $exists = call_user_func_array($container->resolve('refs.local.exists')[0], [$container, $env]);
-                $hash = ($exists) ? call_user_func_array($container->resolve('refs.resolve')[0], [$container, $env, false]) : null;
-                $refMessage = call_user_func_array($container->resolve('refs.log_message')[0], [$container, $version]);
+            ['refs', 'cache', 'flush'],
+            function (Container $c, $name, ...$args) {
+                $hash = $this->createHash($name, ...$args);
+                if (isset($this->cache[$hash])) {
+                    unset($this->cache[$hash]);
+                    return "Refs: Cache cleard for " . $hash;
+                } else {
+                    return "Refs: No cache found for " . $hash;
+                }
+            }
+        );
+
+        $this->cachedResultMethod(
+            $container,
+            ['refs', 'create_command'],
+            function (Container $c, $message, $version, $env) {
                 return sprintf(
-                    'git update-ref -m "%s" --no-deref --create-reflog %s $(git commit-tree %s%s -m "%s")%s',
+                    'git update-ref -m "%s" --no-deref --create-reflog %s $(git commit-tree %s %s -m "%s") %s',
                     $message,
-                    $path,
-                    $tree,
-                    ($exists) ? " -p ${hash}": null,
-                    $refMessage,
-                    ($exists) ? " ${hash}": null
+                    $this->call($c, 'refs.path', $env),
+                    $this->call($c, 'refs.resolve_tree', $version),
+                    $this->getParentArg($c, $env),
+                    $this->call($c, 'refs.log_message', $version),
+                    $this->getLocalTreeHash($c, $env)
                 );
             }
         );
