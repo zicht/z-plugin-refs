@@ -1,4 +1,4 @@
-##z-plugin-refs
+## z-plugin-refs
 
 This plugin will create commit from the tree that is deployed (and if the ref already exists with the old ref as parent) 
 and saves/update the commit hash in a ref that is located in refs/envs/{{target_env}}. So for example you deploy to 
@@ -7,7 +7,7 @@ production the ref will be stored in refs/envs/production (or on working dir ./g
 So what it basically does is creating an new timeline/history from the commits deployed to a environment and because it 
 is basically a branch with the refs/envs/{{target_env}} as head, you can do evertything what you normaly do with branch.
 
-###installation
+### installation
 
 add refs to the plugins of a project
 
@@ -26,7 +26,7 @@ It hook into the post deploy andd add some extra commands.
   env:refs:sync            Will set the ref from a remote when not exists.
 ```
 
-###examples
+### examples
 
 print logs:
 
@@ -59,7 +59,7 @@ check diffs of deploys:
 git diff envs/production~1 envs/production
 ```
 
-###dependencies
+### dependencies
 
 lib | description 
 --- | --- 
