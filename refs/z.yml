@@ -17,7 +17,7 @@ tasks:
         args:
             target_env: ?
         do:
-            - git fetch +$(refs.path(target_env)):$(refs.path(target_env))
+            - git fetch origin +$(refs.path(target_env)):$(refs.path(target_env))
     env.refs.search:
         help:  |
            Will search for a tree in the commit history from the HEAD.
