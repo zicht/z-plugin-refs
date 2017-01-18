@@ -10,7 +10,7 @@ tasks:
         args:
             target_env: ?
         do:
-            - git push +$(refs.path(target_env)):$(refs.path(target_env))
+            - git push origin +$(refs.path(target_env)):$(refs.path(target_env))
     env.refs.remote.fetch:
         help: Fetch the refs from the remote
         unless: !refs.remote.exists(target_env)
