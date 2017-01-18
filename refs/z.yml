@@ -51,5 +51,5 @@ tasks:
             - $(tasks.env.refs.remote.fetch)
         post:
             - $(refs.create_command(ref_message, build.version, target_env))
-            - $(refs.cache.flush("refs.local.exists", target_env))
+            - echo "$(refs.cache.flush("refs.local.exists", target_env))"
             - $(tasks.env.refs.remote.push)
