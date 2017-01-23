@@ -5,51 +5,43 @@ refs:
 
 tasks:
     env.refs.remote.push:
-        help: Push the reft to remote
+        help: Push the refs to remote
         unless: !refs.local.exists(target_env)
+        opts:
+            remote:
         args:
             target_env: ?
         do:
-            - git push origin +$(refs.path(target_env)):$(refs.path(target_env))
+            - $(refs.fmt.git_remote_push(target_env, remote))
     env.refs.remote.fetch:
         help: Fetch the refs from the remote
-        unless: !refs.remote.exists(target_env)
+        unless: !refs.remote.exists(target_env, remote)
+        opts:
+            remote:
         args:
             target_env: ?
         do:
-            - git fetch origin +$(refs.path(target_env)):$(refs.path(target_env))
-    env.refs.search:
-        help:  |
-           Will search for a tree in the commit history from the HEAD.
-        args:
-            tree: ?
-        do: for i in $$(git for-each-ref --sort=committerdate --format='%(tree)%(objectname)'); do [[ ${#i} == 80  && "${i:0:40}" == "$(tree)" ]] && echo ${i:40}; done || exit 0
-    env.refs.sync:
-        help:  Will set the ref from a remote when not exists.
-        set:
-          _tree_remote: refs.resolve_tree(env.versionat(target_env))
-          _tree_local:  refs.local.exists(target_env) ? refs.resolve_tree(refs.path(target_env)) : ""
+            - $(refs.fmt.git_remote_fetch(target_env, remote))
+    env.refs.show:
+        help: Prints matching refs (tags, branches etc.) that match the same tree as the ref.
         args:
             target_env: ?
-            ref_message: sprintf("[z] new ref for %s by sync", build.version)
-        pre: $(tasks.env.refs.remote.fetch)
-        do:
-            - @(if !refs.local.exists(target_env)) $(refs.create_command(ref_message, env.versionat(target_env), target_env))
-            - @(if refs.local.exists(target_env) && _tree_local == _tree_remote) echo "$(target_env) is in sync."
-            - @(if refs.local.exists(target_env) && _tree_local != _tree_remote && !FORCE) echo "$(target_env) is not in sync. (use --force to update)"
-            - @(if refs.local.exists(target_env) && _tree_local != _tree_remote && FORCE) $(refs.create_command(ref_message, env.versionat(target_env), target_env))
-    env.refs.resolve:
-        help:  Search and print hash of commit with the smae hash from the HEAD
-        unless: !refs.local.exists(target_env)
-        args:
-            target_env: ?
-        do: $(z.cmd) env:refs:search "$(refs.resolve_tree(refs.path(target_env)))"
+        do: |
+            REF_PATH="$(refs.path(target_env))"
+            TREE=$$(git rev-parse $$(git show-ref --hash $REF_PATH)^{tree})
+            echo -e "Checking for tree match of ref \033[0;32m$REF_PATH\033[0m (\033[0;33m$TREE\033[0m)."
+            for i in $$(git for-each-ref --format='%(objectname)%(refname)'); do
+                if [ "$TREE" == "$$(git rev-parse ${i:0:40}^{tree})" ]; then
+                  echo -e "\033[0;33m${i:0:40}\033[0m ${i:40}";
+                fi
+            done || exit 0
     deploy:
         args:
             ref_message: sprintf("[z] new ref for %s", build.version)
+        opts:
+            remote:
         pre:
             - $(tasks.env.refs.remote.fetch)
         post:
-            - $(refs.create_command(ref_message, build.version, target_env))
-            - echo "$(refs.cache.flush("refs.local.exists", target_env))"
-            - $(tasks.env.refs.remote.push)
+            - $(refs.fmt.git_update_ref(ref_message, build.version, target_env))
+            - $(refs.fmt.git_remote_push(target_env, remote))

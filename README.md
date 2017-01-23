@@ -21,9 +21,7 @@ It hook into the post deploy andd add some extra commands.
 ```
   env:refs:remote:fetch    Fetch the refs from the remote
   env:refs:remote:push     Push the reft to remote
-  env:refs:resolve         Search and print hash of commit with the smae hash from the HEAD
-  env:refs:search          Will search for a tree in the commit history from the HEAD.
-  env:refs:sync            Will set the ref from a remote when not exists.
+  env:refs:show            Prints matching refs (tags, branches etc.) that match the same tree as the ref.
 ```
 
 ### examples
