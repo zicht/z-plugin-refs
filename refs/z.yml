@@ -35,6 +35,26 @@ tasks:
                   echo -e "\033[0;33m${i:0:40}\033[0m ${i:40}";
                 fi
             done || exit 0
+    env.refs.history:
+        help: Prints matching refs (tags, branches etc.) form the ref timeline.
+        opts:
+            offset:
+            limit:
+        args:
+            target_env: ?
+        do: |
+            REF_PATH="$(refs.path(target_env))"
+            for REF in $$(git rev-list $(offset ? sprintf("--skip=%s", offset))  $(limit ? sprintf("--max-count=%s", limit)) $REF_PATH); do
+                REF_TREE=$$(git rev-parse $REF^{tree})
+                echo -e "Checking for tree match of ref \033[0;32m$REF_PATH(${REF:0:10})\033[0m (\033[0;33m$REF_TREE\033[0m)."
+                [[ "$(VERBOSE)" ==  1 ]] && { echo -e ""; git log --color $REF -l1 --pretty=format:"[%h][%cI][%ae]%s"; echo -e "\n"; }
+                for i in $$(git for-each-ref --format='%(objectname)%(refname)'); do
+                    if [ "$REF_TREE" == "$$(git rev-parse ${i:0:40}^{tree})" ]; then
+                      echo -e "\033[0;33m${i:0:40}\033[0m ${i:40}";
+                    fi
+                done
+                echo ""
+            done || exit 0            
     deploy:
         args:
             ref_message: sprintf("[z] new ref for %s", build.version)
