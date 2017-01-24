@@ -30,6 +30,7 @@ tasks:
             REF_PATH="$(refs.path(target_env))"
             TREE=$$(git rev-parse $$(git show-ref --hash $REF_PATH)^{tree})
             echo -e "Checking for tree match of ref \033[0;32m$REF_PATH\033[0m (\033[0;33m$TREE\033[0m)."
+            [[ "$(VERBOSE)" ==  1 ]] && { echo -e ""; git log --color $REF_PATH -n1 --pretty=format:"[%h][%cI][%ae]%s"; echo -e "\n"; }
             for i in $$(git for-each-ref --format='%(objectname)%(refname)'); do
                 if [ "$TREE" == "$$(git rev-parse ${i:0:40}^{tree})" ]; then
                   echo -e "\033[0;33m${i:0:40}\033[0m ${i:40}";
@@ -47,7 +48,7 @@ tasks:
             for REF in $$(git rev-list $(offset ? sprintf("--skip=%s", offset))  $(limit ? sprintf("--max-count=%s", limit)) $REF_PATH); do
                 REF_TREE=$$(git rev-parse $REF^{tree})
                 echo -e "Checking for tree match of ref \033[0;32m$REF_PATH(${REF:0:10})\033[0m (\033[0;33m$REF_TREE\033[0m)."
-                [[ "$(VERBOSE)" ==  1 ]] && { echo -e ""; git log --color $REF -l1 --pretty=format:"[%h][%cI][%ae]%s"; echo -e "\n"; }
+                [[ "$(VERBOSE)" ==  1 ]] && { echo -e ""; git log --color $REF -n1 --pretty=format:"[%h][%cI][%ae]%s"; echo -e "\n"; }
                 for i in $$(git for-each-ref --format='%(objectname)%(refname)'); do
                     if [ "$REF_TREE" == "$$(git rev-parse ${i:0:40}^{tree})" ]; then
                       echo -e "\033[0;33m${i:0:40}\033[0m ${i:40}";
