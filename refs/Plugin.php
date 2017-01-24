@@ -112,15 +112,14 @@ class Plugin extends BasePlugin
 				  	"    --no-deref --create-reflog",
 					"    $path",
 				  	"    $(git commit-tree",
-				    "        $(git rev-parse ${version}^{tree})",
+				    	"        $(git rev-parse ${version}^{tree})",
 				];
 				$exists = $this->call($c, 'refs.local.exists', $env);
 			  	if ($exists) {
 					$cmd[] = "        -p \"$(git show-ref --hash $path)\"";
-				} else {
-				  	$cmd[] = "        -m \"$(git log -1 --pretty=format:\"[z] Commit from: '%H %s'\" ${version})\"";
-				  	$cmd[] = "    )";
 				}
+				$cmd[] = "        -m \"$(git log -1 --pretty=format:\"[z] Commit from: '%H %s'\" ${version})\"";
+				$cmd[] = "    )";				
 			  	if ($exists) {
 				  	$cmd[] = "    $(git show-ref --hash $path)";
 				}
