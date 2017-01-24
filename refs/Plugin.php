@@ -106,24 +106,24 @@ class Plugin extends BasePlugin
             ['refs', 'fmt', "git_update_ref"],
             function (Container $c, $message, $version, $env) {
                 $path = $this->call($c, 'refs.path', $env);
-			  	$cmd = [
-				  	"git update-ref",
-				  	"    -m \"$message\"",
-				  	"    --no-deref --create-reflog",
-					"    $path",
-				  	"    $(git commit-tree",
-				    	"        $(git rev-parse ${version}^{tree})",
-				];
-				$exists = $this->call($c, 'refs.local.exists', $env);
-			  	if ($exists) {
-					$cmd[] = "        -p \"$(git show-ref --hash $path)\"";
-				}
-				$cmd[] = "        -m \"$(git log -1 --pretty=format:\"[z] Commit from: '%H %s'\" ${version})\"";
-				$cmd[] = "    )";				
-			  	if ($exists) {
-				  	$cmd[] = "    $(git show-ref --hash $path)";
-				}
-				return implode(" \\\n", $cmd);
+		$cmd = [
+			"git update-ref",
+			"    -m \"$message\"",
+			"    --no-deref --create-reflog",
+			"    $path",
+			"    $(git commit-tree",
+			"        $(git rev-parse ${version}^{tree})",
+		];
+		$exists = $this->call($c, 'refs.local.exists', $env);
+		if ($exists) {
+			$cmd[] = "        -p \"$(git show-ref --hash $path)\"";
+		}
+		$cmd[] = "        -m \"$(git log -1 --pretty=format:\"[z] Commit from: '%H %s'\" ${version})\"";
+		$cmd[] = "    )";				
+		if ($exists) {
+			$cmd[] = "    $(git show-ref --hash $path)";
+		}
+		return implode(" \\\n", $cmd);
             }
         );
 
