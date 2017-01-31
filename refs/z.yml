@@ -62,7 +62,9 @@ tasks:
             patch: false
         args:
             target_env: ?
-        do: git diff-index $(patch ? "--patch --minimal ")$$(git rev-parse $(refs.path(target_env))^{tree})
+        do: 
+            - git update-index --really-refresh
+            - git diff-index $(patch ? "--patch --minimal ")$$(git rev-parse $(refs.path(target_env))^{tree})
     deploy:
         args:
             ref_message: sprintf("[z] new ref for %s", build.version)
