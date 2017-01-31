@@ -30,7 +30,7 @@ tasks:
             REF_PATH="$(refs.path(target_env))"
             TREE=$$(git rev-parse $$(git show-ref --hash $REF_PATH)^{tree})
             echo -e "Checking for tree match of ref \033[0;32m$REF_PATH\033[0m (\033[0;33m$TREE\033[0m)."
-            [[ "$(VERBOSE)" ==  1 ]] && { echo -e ""; git log --color $REF_PATH -n1 --pretty=format:"[%h][%cI][%ae]%s"; echo -e "\n"; }
+            [[ "$(VERBOSE)" ==  1 ]] && git log --color $REF_PATH -n1 --pretty=format:"Commit:  %H%nTree:    %T%nDate:    %ci%nAuthor:  %ae%nSubject: %s%n"
             for i in $$(git for-each-ref --format='%(objectname)%(refname)'); do
                 if [ "$TREE" == "$$(git rev-parse ${i:0:40}^{tree})" ]; then
                   echo -e "\033[0;33m${i:0:40}\033[0m ${i:40}";
@@ -48,14 +48,21 @@ tasks:
             for REF in $$(git rev-list $(offset ? sprintf("--skip=%s", offset))  $(limit ? sprintf("--max-count=%s", limit)) $REF_PATH); do
                 REF_TREE=$$(git rev-parse $REF^{tree})
                 echo -e "Checking for tree match of ref \033[0;32m$REF_PATH(${REF:0:10})\033[0m (\033[0;33m$REF_TREE\033[0m)."
-                [[ "$(VERBOSE)" ==  1 ]] && { echo -e ""; git log --color $REF -n1 --pretty=format:"[%h][%cI][%ae]%s"; echo -e "\n"; }
+                [[ "$(VERBOSE)" ==  1 ]] && git log --color $REF -n1 --pretty=format:"Commit:  %H%nTree:    %T%nDate:    %ci%nAuthor:  %ae%nSubject: %s%n"
                 for i in $$(git for-each-ref --format='%(objectname)%(refname)'); do
                     if [ "$REF_TREE" == "$$(git rev-parse ${i:0:40}^{tree})" ]; then
                       echo -e "\033[0;33m${i:0:40}\033[0m ${i:40}";
                     fi
                 done
                 echo ""
-            done || exit 0            
+            done || exit 0
+    env.refs.diff:
+        help: Prints the diff from a env ref (or create path).
+        flags:
+            patch: false
+        args:
+            target_env: ?
+        do: git diff-index $(patch ? "--patch --minimal ")$$(git rev-parse $(refs.path(target_env)))
     deploy:
         args:
             ref_message: sprintf("[z] new ref for %s", build.version)
