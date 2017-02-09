@@ -66,12 +66,13 @@ tasks:
             - git update-index --really-refresh
             - git diff-index $(patch ? "--patch --minimal ")$$(git rev-parse $(refs.path(target_env))^{tree})
     deploy:
-        args:
-            ref_message: sprintf("[z] new ref for %s", build.version)
+        flags:
+            update_ref: true
         opts:
             remote:
+            ref_message: sprintf("[z] new ref for %s", build.version)
         pre:
-            - $(tasks.env.refs.remote.fetch)
+            - @(if update_ref) $(tasks.env.refs.remote.fetch)
         post:
-            - $(refs.fmt.git_update_ref(ref_message, build.version, target_env))
-            - $(refs.fmt.git_remote_push(target_env, remote))
+            - @(if update_ref) $(refs.fmt.git_update_ref(ref_message, build.version, target_env))
+            - @(if update_ref) $(refs.fmt.git_remote_push(target_env, remote))
